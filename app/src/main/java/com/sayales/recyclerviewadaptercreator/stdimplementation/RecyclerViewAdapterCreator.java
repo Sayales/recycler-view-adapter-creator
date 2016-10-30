@@ -1,10 +1,16 @@
-package com.sayales.recyclerviewadaptercreator;
+package com.sayales.recyclerviewadaptercreator.stdimplementation;
 
+import android.support.annotation.LayoutRes;
+import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import com.sayales.recyclerviewadaptercreator.SwipeAction;
+import com.sayales.recyclerviewadaptercreator.ViewHolderBinder;
+import com.sayales.recyclerviewadaptercreator.interfaces.CreatorInterface;
 
 import java.lang.reflect.Constructor;
 import java.util.List;
@@ -12,25 +18,32 @@ import java.util.List;
 /**
  * Created by Pavel on 25.10.2016.
  */
-public class RecyclerViewAdapterCreator<T> {
-
+public class RecyclerViewAdapterCreator<T> implements CreatorInterface<T> {
 
 
     private List<T> data;
     private RecyclerView view;
     private Config config = new Config();
 
-    public RecyclerViewAdapterCreator(List<T> data) {
+    private RecyclerViewAdapterCreator(List<T> data) {
         this.data = data;
     }
 
-    public RecyclerViewAdapterCreator<T> onSwipeDismissable(RecyclerView view) {
+    public static <T> CreatorInterface<T> create(List<T> data) {
+        return new RecyclerViewAdapterCreator<>(data);
+    }
+
+
+    @Override
+    public CreatorInterface<T> onSwipeAction(RecyclerView view, @Nullable SwipeAction action) {
         config.swipable = true;
+        config.action = action;
         this.view = view;
         return this;
     }
 
-    public RecyclerViewAdapterCreator<T> withFooterViewHolder(Class<? extends RecyclerView.ViewHolder> clazz, int layoutId) {
+    @Override
+    public CreatorInterface<T> withFooterViewHolder(Class<? extends RecyclerView.ViewHolder> clazz, @LayoutRes int layoutId) {
         Constructor<? extends RecyclerView.ViewHolder> ctor = null;
         try {
             ctor = clazz.getConstructor(View.class);
@@ -43,7 +56,8 @@ public class RecyclerViewAdapterCreator<T> {
         return this;
     }
 
-    public RecyclerViewAdapterCreator<T> withHeaderViewHolder(Class<? extends RecyclerView.ViewHolder> clazz, int layoutId) {
+    @Override
+    public CreatorInterface<T> withHeaderViewHolder(Class<? extends RecyclerView.ViewHolder> clazz, @LayoutRes int layoutId) {
         Constructor<? extends RecyclerView.ViewHolder> ctor = null;
         try {
             ctor = clazz.getConstructor(View.class);
@@ -56,7 +70,8 @@ public class RecyclerViewAdapterCreator<T> {
         return this;
     }
 
-    public Config withViewHolder(Class<? extends RecyclerView.ViewHolder> clazz, int layoutId) {
+    @Override
+    public com.sayales.recyclerviewadaptercreator.interfaces.Config<T> withViewHolder(Class<? extends RecyclerView.ViewHolder> clazz, @LayoutRes int layoutId) {
         Constructor<? extends RecyclerView.ViewHolder> ctor = null;
         try {
             ctor = clazz.getConstructor(View.class);
@@ -69,7 +84,7 @@ public class RecyclerViewAdapterCreator<T> {
     }
 
 
-    public class Configured {
+    public class Configured implements com.sayales.recyclerviewadaptercreator.interfaces.Configured<T> {
 
         private RecyclerView.ViewHolder footer;
         private RecyclerView.ViewHolder header;
@@ -96,21 +111,17 @@ public class RecyclerViewAdapterCreator<T> {
             return footer;
         }
 
-        public void setFooter(RecyclerView.ViewHolder footer) {
-            this.footer = footer;
-        }
-
         public RecyclerView.ViewHolder getHeader() {
             return header;
         }
 
-        public void setHeader(RecyclerView.ViewHolder header) {
-            this.header = header;
+        public List<T> getData() {
+            return data;
         }
 
         private ItemTouchAdapter getExceptedAdapter() {
             if (config.withFooter && config.withHeader)
-               return adapterWithHeaderAndFooter();
+                return adapterWithHeaderAndFooter();
             if (config.withFooter)
                 return adapterWithFooter();
             if (config.withHeader)
@@ -128,7 +139,7 @@ public class RecyclerViewAdapterCreator<T> {
 
                 @Override
                 public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-                    binder.bind(holder, position, data);
+                    binder.bind(holder, position, Configured.this);
                 }
 
                 @Override
@@ -163,7 +174,7 @@ public class RecyclerViewAdapterCreator<T> {
 
                 @Override
                 public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-                    binder.bind(holder, position, data);
+                    binder.bind(holder, position, Configured.this);
                 }
 
                 @Override
@@ -183,8 +194,12 @@ public class RecyclerViewAdapterCreator<T> {
 
                 @Override
                 public void onItemDismiss(int position) {
-                    data.remove(position);
-                    notifyItemRemoved(position);
+                    if (config.action != null) {
+                        config.action.action(position, Configured.this, this);
+                    } else {
+                        data.remove(position);
+                        notifyItemRemoved(position);
+                    }
                 }
             };
         }
@@ -204,7 +219,7 @@ public class RecyclerViewAdapterCreator<T> {
 
                 @Override
                 public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-                    binder.bind(holder,position,data);
+                    binder.bind(holder, position, Configured.this);
                 }
 
                 @Override
@@ -221,10 +236,15 @@ public class RecyclerViewAdapterCreator<T> {
                     }
                     return super.getItemViewType(position);
                 }
+
                 @Override
                 public void onItemDismiss(int position) {
-                    data.remove(position);
-                    notifyItemRemoved(position);
+                    if (config.action != null) {
+                        config.action.action(position, Configured.this, this);
+                    } else {
+                        data.remove(position);
+                        notifyItemRemoved(position);
+                    }
                 }
             };
         }
@@ -246,7 +266,7 @@ public class RecyclerViewAdapterCreator<T> {
 
                 @Override
                 public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-                    binder.bind(holder,position,data);
+                    binder.bind(holder, position, Configured.this);
                 }
 
                 @Override
@@ -269,14 +289,18 @@ public class RecyclerViewAdapterCreator<T> {
 
                 @Override
                 public void onItemDismiss(int position) {
-                    data.remove(position);
-                    notifyItemRemoved(position);
+                    if (config.action != null) {
+                        config.action.action(position, Configured.this, this);
+                    } else {
+                        data.remove(position);
+                        notifyItemRemoved(position);
+                    }
                 }
             };
         }
     }
 
-    public class Config {
+    public class Config implements com.sayales.recyclerviewadaptercreator.interfaces.Config<T> {
 
         boolean swipable = false;
 
@@ -296,14 +320,16 @@ public class RecyclerViewAdapterCreator<T> {
 
         int headerHolderLayoutId;
 
+        SwipeAction action;
 
-        public Configured withViewHolderBinder(ViewHolderBinder<T> binder) {
+        @Override
+        public com.sayales.recyclerviewadaptercreator.interfaces.Configured<T> withViewHolderBinder(ViewHolderBinder<T> binder) {
             return new Configured(binder, this);
         }
 
         RecyclerView.ViewHolder getNormalViewHolder(ViewGroup parent) {
             try {
-                return normalHolderConstructor.newInstance(LayoutInflater.from(parent.getContext()).inflate(normalHolderLayoutId,parent,false));
+                return normalHolderConstructor.newInstance(LayoutInflater.from(parent.getContext()).inflate(normalHolderLayoutId, parent, false));
             } catch (Exception e) {
                 e.printStackTrace();
                 return null;
@@ -312,7 +338,7 @@ public class RecyclerViewAdapterCreator<T> {
 
         RecyclerView.ViewHolder getFooterViewHolder(ViewGroup parent) {
             try {
-                return footerHolderConstructor.newInstance(LayoutInflater.from(parent.getContext()).inflate(footerHolderLayoutId,parent,false));
+                return footerHolderConstructor.newInstance(LayoutInflater.from(parent.getContext()).inflate(footerHolderLayoutId, parent, false));
             } catch (Exception e) {
                 e.printStackTrace();
                 return null;
@@ -321,7 +347,7 @@ public class RecyclerViewAdapterCreator<T> {
 
         RecyclerView.ViewHolder getHeaderViewHolder(ViewGroup parent) {
             try {
-                return headerHolderConstructor.newInstance(LayoutInflater.from(parent.getContext()).inflate(headerHolderLayoutId,parent,false));
+                return headerHolderConstructor.newInstance(LayoutInflater.from(parent.getContext()).inflate(headerHolderLayoutId, parent, false));
             } catch (Exception e) {
                 e.printStackTrace();
                 return null;
