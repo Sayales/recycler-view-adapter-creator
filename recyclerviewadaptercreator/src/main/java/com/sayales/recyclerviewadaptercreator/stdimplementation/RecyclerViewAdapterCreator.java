@@ -29,7 +29,7 @@ public class RecyclerViewAdapterCreator<T> implements CreatorInterface<T> {
         this.data = data;
     }
 
-    public static <T> CreatorInterface<T> create(List<T> data) {
+    public static <T> CreatorInterface<T> withData(List<T> data) {
         return new RecyclerViewAdapterCreator<>(data);
     }
 
