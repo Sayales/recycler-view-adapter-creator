@@ -13,7 +13,7 @@ import com.sayales.recyclerviewadaptercreator.SwipeAction;
 public interface CreatorInterface<T> {
 
     /*
-    * Add onSwipe action to view, if (action == null) add swipe to dismiss action
+    * Adds onSwipe action to view, if (action == null) adds swipe to dismiss action
     * Footer and header are not swipable
      */
     CreatorInterface<T> onSwipeAction(RecyclerView view, @Nullable SwipeAction action);
